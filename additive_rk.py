@@ -7,6 +7,7 @@ except:
     print("no finite element solver")
     Function = type(None)
     Constant = type(None)
+import tqdm
 
 def ark_step(f, step, y0, t0, methods, rtol=1e-3, atol=1e-6, control=False, order=None, J=None, **kwargs):
     """
@@ -334,15 +335,20 @@ def ark_solve(functions, dt, y0, t0, tf, methods, rtol=1e-3, atol=1e-6, bc=None,
             np.savetxt(f, [[t] + [x for x in y0]], delimiter=',')
         saved = t
     
-    while t < tf:
-        if fem:
-            dt_new, dt, y0 = step(functions, dt, y0, t0, methods, rtol=rtol, atol=atol, order=order, control=control, bc=bc, solver_parameters=solver_parameters)
-        else:
-            J = None
-            if jacobian is not None:
-                J = jacobian(t0, y0)
-            dt_new, dt, y0 = step(functions, dt, y0, t0, methods, rtol=rtol, atol=atol, order=order, control=control, J = J, **solver_parameters)
-        t += dt
+    # Create a tqdm progress bar for the time integration
+    time_steps = int((tf - t) / dt) + 1
+    with tqdm.tqdm(total=time_steps, desc="Time integration") as pbar:
+        while t < tf:
+            
+            if fem:
+                dt_new, dt, y0 = step(functions, dt, y0, t0, methods, rtol=rtol, atol=atol, order=order, control=control, bc=bc, solver_parameters=solver_parameters)
+            else:
+                J = None
+                if jacobian is not None:
+                    J = jacobian(t0, y0)
+                dt_new, dt, y0 = step(functions, dt, y0, t0, methods, rtol=rtol, atol=atol, order=order, control=control, J = J, **solver_parameters)
+            t += dt
+            pbar.update(1)
         if isinstance(t0, Constant):
             t0.assign(t)
         else:
